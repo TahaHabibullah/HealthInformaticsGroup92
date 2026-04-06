@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSV Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #0066cc;
+        }
+
+        .button-row {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 16px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 800px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        td {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .empty-message {
+            margin-top: 20px;
+            color: #666;
+        }
+
+        .json-preview {
+            background: #f8f8f8;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .json-full {
+            display: none;
+            background: #ffffff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .small-btn {
+            padding: 6px 10px;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <a class="nav-link" href="/">Back to Symptom Checker</a>
+
+    <h2>CSV Data Viewer</h2>
+
+    <div class="button-row">
+        <button onclick="loadTable('customers')">Customers</button>
+        <button onclick="loadTable('encounters')">Encounters</button>
+        <button onclick="loadTable('symptoms')">Symptoms</button>
+        <button onclick="loadTable('ai')">AI Results</button>
+        <button onclick="loadTable('fhir')">FHIR Resources</button>
+    </div>
+
+    <h3 id="table-title">Select a table</h3>
+    <div id="table-area"></div>
+
+    <script>
+        async function loadTable(tableName) {
+            const title = document.getElementById("table-title");
+            const tableArea = document.getElementById("table-area");
+
+            title.innerText = tableName.toUpperCase();
+            tableArea.innerHTML = "Loading...";
+
+            const res = await fetch(`/data/${tableName}`);
+            const data = await res.json();
+            const rows = data.rows;
+
+            if (!rows || rows.length === 0) {
+                tableArea.innerHTML = '<div class="empty-message">No data found.</div>';
+                return;
+            }
+
+            const columns = Object.keys(rows[0]);
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            columns.forEach(column => {
+                html += `<th>${escapeHtml(column)}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            rows.forEach((row, rowIndex) => {
+                html += '<tr>';
+
+                columns.forEach(column => {
+                    if (tableName === "fhir" && column === "resource_json") {
+                        html += `<td>${buildFhirJsonCell(row, rowIndex)}</td>`;
+                    } else {
+                        html += `<td>${escapeHtml(row[column] ?? "")}</td>`;
+                    }
+                });
+
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            tableArea.innerHTML = html;
+        }
+
+        function buildFhirJsonCell(row, rowIndex) {
+            const rawJson = row.resource_json || "";
+            const resourceType = row.resource_type || "";
+            const preview = getPreviewText(resourceType, rawJson);
+            const escapedFullJson = escapeHtml(formatJson(rawJson));
+            const fullId = `full-json-${rowIndex}`;
+
+            return `
+                <div class="json-preview">${escapeHtml(preview)}</div>
+                <button class="small-btn" onclick="toggleJson('${fullId}', this)">Show Full JSON</button>
+                <div class="json-full" id="${fullId}">${escapedFullJson}</div>
+            `;
+        }
+
+        function getPreviewText(resourceType, rawJson) {
+            if (resourceType === "DiagnosticReport") {
+                return "DiagnosticReport JSON hidden by default because it is long.";
+            }
+
+            try {
+                const parsed = JSON.parse(rawJson);
+                const resourceTypeText = parsed.resourceType || resourceType || "FHIR Resource";
+                const idText = parsed.id ? ` | id: ${parsed.id}` : "";
+                return `${resourceTypeText}${idText}`;
+            } catch (error) {
+                return `${resourceType || "FHIR Resource"} JSON`;
+            }
+        }
+
+        function toggleJson(fullId, button) {
+            const fullDiv = document.getElementById(fullId);
+
+            if (fullDiv.style.display === "none" || fullDiv.style.display === "") {
+                fullDiv.style.display = "block";
+                button.innerText = "Hide Full JSON";
+            } else {
+                fullDiv.style.display = "none";
+                button.innerText = "Show Full JSON";
+            }
+        }
+
+        function formatJson(value) {
+            try {
+                return JSON.stringify(JSON.parse(value), null, 2);
+            } catch (error) {
+                return value;
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+
+</body>
+</html>

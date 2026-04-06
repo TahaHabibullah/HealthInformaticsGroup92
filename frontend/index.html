@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clinical Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            margin-bottom: 14px;
+        }
+
+        textarea {
+            height: 120px;
+        }
+
+        button {
+            padding: 10px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            text-decoration: none;
+            color: #0066cc;
+        }
+
+        .case-card {
+            background: #f4f4f4;
+            padding: 14px;
+            margin-top: 14px;
+            border-radius: 6px;
+        }
+
+        .case-summary {
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        .case-full {
+            margin-top: 10px;
+            white-space: pre-wrap;
+            display: none;
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+
+    <a class="nav-link" href="/data-viewer">Go to CSV Viewer</a>
+
+    <h2>Clinical Symptom Checker</h2>
+
+    <label for="name">Name</label>
+    <input type="text" id="name" />
+
+    <label for="symptoms">Symptoms</label>
+    <textarea id="symptoms"></textarea>
+
+    <button onclick="submitData()">Submit</button>
+    <button onclick="getFHIR()">Save to FHIR Database</button>
+
+    <h3>Results</h3>
+    <div id="results"></div>
+
+    <script>
+        let encounterId = null;
+
+        function toggleFullCase(index) {
+            const fullDiv = document.getElementById(`full-case-${index}`);
+            const button = document.getElementById(`toggle-btn-${index}`);
+
+            if (fullDiv.style.display === "none" || fullDiv.style.display === "") {
+                fullDiv.style.display = "block";
+                button.innerText = "Hide Full Case";
+            } else {
+                fullDiv.style.display = "none";
+                button.innerText = "Show Full Case";
+            }
+        }
+
+        async function submitData() {
+            const name = document.getElementById("name").value;
+            const symptoms = document.getElementById("symptoms").value;
+
+            const customerRes = await fetch("http://127.0.0.1:8000/customers", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: name })
+            });
+            const customer = await customerRes.json();
+
+            const encounterRes = await fetch("http://127.0.0.1:8000/encounters", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ customer_id: customer.customer_id })
+            });
+            const encounter = await encounterRes.json();
+            encounterId = encounter.encounter_id;
+
+            const symptomRes = await fetch("http://127.0.0.1:8000/symptoms", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    encounter_id: encounterId,
+                    symptoms: symptoms
+                })
+            });
+
+            const data = await symptomRes.json();
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "";
+
+            data.similar_cases.forEach((caseItem, index) => {
+                const card = document.createElement("div");
+                card.className = "case-card";
+
+                const title = document.createElement("h4");
+                title.innerText = `Case ${index + 1}`;
+
+                const summary = document.createElement("div");
+                summary.className = "case-summary";
+                summary.innerText = caseItem.summary;
+
+                const toggleButton = document.createElement("button");
+                toggleButton.id = `toggle-btn-${index}`;
+                toggleButton.innerText = "Show Full Case";
+                toggleButton.onclick = function () {
+                    toggleFullCase(index);
+                };
+
+                const fullCase = document.createElement("div");
+                fullCase.className = "case-full";
+                fullCase.id = `full-case-${index}`;
+                fullCase.innerText = caseItem.full_case;
+
+                card.appendChild(title);
+                card.appendChild(summary);
+                card.appendChild(toggleButton);
+                card.appendChild(fullCase);
+
+                resultsDiv.appendChild(card);
+            });
+        }
+
+        async function getFHIR() {
+            if (!encounterId) {
+                alert("Submit symptoms first.");
+                return;
+            }
+
+            const res = await fetch(`http://127.0.0.1:8000/encounters/${encounterId}/fhir`);
+            const data = await res.json();
+
+            console.log(data);
+            alert("FHIR bundle printed in browser console.");
+        }
+    </script>
+
+</body>
+</html>
