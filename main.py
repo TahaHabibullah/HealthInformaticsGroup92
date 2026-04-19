@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from model import chain
 import os
 import uuid
 
@@ -83,7 +84,7 @@ def submit_symptoms(req: SymptomRequest):
 
     safe_write("ai", [req.encounter_id, str(results)])
 
-    return {"similar_cases": results}
+    return chain.invoke({"symptoms": req.symptoms, "documents": str(results)})
 
 @app.get("/encounters/{encounter_id}/fhir")
 def export_fhir_bundle(encounter_id: str):
