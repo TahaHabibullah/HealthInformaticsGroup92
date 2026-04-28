@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from model import chain
 import os
 import uuid
@@ -9,6 +8,7 @@ import uuid
 from storage import init_csv, safe_write, find_all, read_all
 from rag import ClinicalRetrieval
 from fhir import generate_fhir_resources_for_encounter, build_fhir_bundle
+from request import EncounterRequest, SymptomRequest, FHIRRequest
 
 app = FastAPI()
 
@@ -19,16 +19,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-class CustomerRequest(BaseModel):
-    name: str
-
-class EncounterRequest(BaseModel):
-    customer_id: str
-
-class SymptomRequest(BaseModel):
-    encounter_id: str
-    symptoms: str
 
 retriever = ClinicalRetrieval()
 
@@ -48,9 +38,9 @@ def serve_data_viewer():
     return FileResponse(os.path.join("frontend", "data_viewer.html"))
 
 @app.post("/customers")
-def create_customer(req: CustomerRequest):
+def create_customer():
     customer_id = str(uuid.uuid4())
-    safe_write("customers", [customer_id, req.name])
+    safe_write("customers", [customer_id])
     return {"customer_id": customer_id}
 
 @app.post("/encounters")
@@ -82,14 +72,15 @@ def submit_symptoms(req: SymptomRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Retrieval failed: {str(e)}")
 
-    safe_write("ai", [req.encounter_id, str(results)])
+    response = chain.invoke({"symptoms": req.symptoms, "documents": str(results)})
+    safe_write("ai", [req.encounter_id, str(response)])
 
-    return chain.invoke({"symptoms": req.symptoms, "documents": str(results)})
+    return response
 
-@app.get("/encounters/{encounter_id}/fhir")
-def export_fhir_bundle(encounter_id: str):
+@app.post("/encounters/fhir")
+def export_fhir_bundle(req: FHIRRequest):
     try:
-        resources = generate_fhir_resources_for_encounter(encounter_id)
+        resources = generate_fhir_resources_for_encounter(req)
         bundle = build_fhir_bundle(resources)
         return bundle
     except ValueError as e:

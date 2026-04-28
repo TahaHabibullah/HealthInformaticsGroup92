@@ -13,7 +13,7 @@ FILES = {
 }
 
 HEADERS = {
-    "customers": ["customer_id", "name"],
+    "customers": ["customer_id"],
     "encounters": ["encounter_id", "customer_id"],
     "symptoms": ["encounter_id", "symptoms"],
     "ai": ["encounter_id", "results"],
