@@ -1,8 +1,8 @@
 from langchain.prompts import PromptTemplate
 from langchain.chat_models import init_chat_model
-from dotenv import dotenv_values
+import os
 
-config = dotenv_values(".env")
+key = os.getenv('OPENAI_API_KEY')
 
 prompt_template = """
 You are a medical information assistant designed to analyze user-reported symptoms and retrieved clinical notes to derive insights on the user's current condition.
@@ -95,6 +95,6 @@ Now generate your analysis.
 
 prompt = PromptTemplate(input_variables=["symptoms", "documents"], template=prompt_template)
 
-llm = init_chat_model("gpt-4o-mini", model_provider="openai", api_key=config["API_KEY"], temperature=0.1)
+llm = init_chat_model("gpt-4o-mini", model_provider="openai", api_key=key, temperature=0.1)
 
 chain = prompt | llm

@@ -1,4 +1,3 @@
-from dotenv import dotenv_values
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -12,11 +11,11 @@ from fhir import generate_fhir_resources_for_encounter, build_fhir_bundle
 from request import EncounterRequest, SymptomRequest, FHIRRequest
 
 app = FastAPI()
-config = dotenv_values(".env")
+frontend_url = os.getenv('FRONTEND_URL')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config["FRONTEND_URL"]],
+    allow_origins=[frontend_url],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
