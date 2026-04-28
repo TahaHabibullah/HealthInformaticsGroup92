@@ -48,7 +48,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [patientName, setPatientName] = useState('');
-  const [age, setAge] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [encounterId, setEncounterId] = useState('');
+  const [isSaved, setIsSaved] = useState(false);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -61,8 +63,7 @@ export default function Home() {
     try {
       const customerRes = await fetch("http://127.0.0.1:8000/customers", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: name })
+                headers: { "Content-Type": "application/json" }
             });
       const customer = await customerRes.json();
 
@@ -74,6 +75,7 @@ export default function Home() {
       });
       const encounter = await encounterRes.json();
       encounterId = encounter.encounter_id;
+      setEncounterId(encounterId);
 
       const symptomRes = await fetch("http://127.0.0.1:8000/symptoms", {
           method: "POST",
@@ -107,18 +109,20 @@ export default function Home() {
     setMessages([]);
     setInput('');
     setLoading(false);
+    setIsSaved(false);
   };
 
   const handleConfirmSave = async () => {
-    await fetch('/api/save-fhir', {
+    await fetch('http://127.0.0.1:8000/encounters/fhir', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ patientName, age, messages }),
+      body: JSON.stringify({ encounter_id: encounterId, patientName, birthDate }),
     });
 
     setOpenDialog(false);
     setPatientName('');
-    setAge('');
+    setBirthDate('');
+    setIsSaved(true);
   };
 
   return (
@@ -265,8 +269,8 @@ export default function Home() {
             <Button variant="contained" color="secondary" onClick={handleAskAgain}>
               Ask Again
             </Button>
-            <Button variant="contained" color="primary" onClick={handleSave}>
-              Save Encounter
+            <Button variant="contained" color="primary" onClick={handleSave} disabled={isSaved}>
+              {isSaved ? 'Encounter Saved' : 'Save Encounter'}
             </Button>
           </Box>
         )}
@@ -280,15 +284,20 @@ export default function Home() {
               margin="dense"
               label="Name"
               fullWidth
+              color="secondary"
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               margin="dense"
-              label="Age"
+              label="Birth Date"
+              type="date"
+              color="secondary"
               fullWidth
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
             />
           </DialogContent>
           <DialogActions>
