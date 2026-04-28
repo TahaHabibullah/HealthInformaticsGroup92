@@ -12,7 +12,7 @@ class ClinicalRetrieval:
         self.embeddings = None
 
     def load_dataset(self):
-        dataset = load_dataset("AGBonnet/augmented-clinical-notes", split="train[:3900]")
+        dataset = load_dataset("AGBonnet/augmented-clinical-notes", split="train[:1950]")
 
         self.cases = [dict(item) for item in dataset]
 
