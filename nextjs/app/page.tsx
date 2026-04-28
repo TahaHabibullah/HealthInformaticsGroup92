@@ -51,6 +51,7 @@ export default function Home() {
   const [birthDate, setBirthDate] = useState('');
   const [encounterId, setEncounterId] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -61,14 +62,14 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const customerRes = await fetch("http://127.0.0.1:8000/customers", {
+      const customerRes = await fetch(`${API_URL}/customers`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" }
             });
       const customer = await customerRes.json();
 
       var encounterId;
-      const encounterRes = await fetch("http://127.0.0.1:8000/encounters", {
+      const encounterRes = await fetch(`${API_URL}/encounters`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ customer_id: customer.customer_id })
@@ -77,7 +78,7 @@ export default function Home() {
       encounterId = encounter.encounter_id;
       setEncounterId(encounterId);
 
-      const symptomRes = await fetch("http://127.0.0.1:8000/symptoms", {
+      const symptomRes = await fetch(`${API_URL}/symptoms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -113,7 +114,7 @@ export default function Home() {
   };
 
   const handleConfirmSave = async () => {
-    await fetch('http://127.0.0.1:8000/encounters/fhir', {
+    await fetch(`${API_URL}/encounters/fhir`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ encounter_id: encounterId, patientName, birthDate }),
